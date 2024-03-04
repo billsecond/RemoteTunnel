@@ -7,7 +7,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Remote.Agent", "Remote.Agen
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Remote.Server", "Remote.Server\Remote.Server.csproj", "{52EE4174-1E22-4668-907B-4692EC6A4263}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TcpTunnel", "TcpTunnel\TcpTunnel.csproj", "{9E5B1ABC-CAA8-4214-8D38-F10C081006D8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TcpTunnel", "TcpTunnel\TcpTunnel.csproj", "{9E5B1ABC-CAA8-4214-8D38-F10C081006D8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Utils", "Utils\Utils.csproj", "{356C0305-0795-4E6E-B8BB-5C8C0A8C9609}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,6 +29,10 @@ Global
 		{9E5B1ABC-CAA8-4214-8D38-F10C081006D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9E5B1ABC-CAA8-4214-8D38-F10C081006D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9E5B1ABC-CAA8-4214-8D38-F10C081006D8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{356C0305-0795-4E6E-B8BB-5C8C0A8C9609}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{356C0305-0795-4E6E-B8BB-5C8C0A8C9609}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{356C0305-0795-4E6E-B8BB-5C8C0A8C9609}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{356C0305-0795-4E6E-B8BB-5C8C0A8C9609}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Remote.Server": {
+      "commandName": "Project",
+      "commandLineArgs": "-p 2282\r\n--pointBPort 2281\r\n--encrypted"
+    }
+  }
+}
