@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "TcpTunnel": {
+      "commandName": "Project",
+      "commandLineArgs": "-p 2281\r\n-u test\r\n--password testpassword\r\n--destHost 127.0.0.1\r\n--destPort 35000\r\n--requireEncryption\r\n\r\n"
+    }
+  }
+}
