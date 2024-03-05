@@ -8,6 +8,7 @@ In that way, Remote Agent process the concurrent request of users.
 - **Secure Communication**: Supports encrypted communication with the remote host, ensuring that data transmitted over the network is protected against eavesdropping and tampering.
 - **Command-Line Interface**: Easy-to-use command-line interface for setting up and managing the connection.
 - **Flexible Configuration**: Allows configuration of local and remote host details, including host addresses, port numbers, and encryption settings.
+- **Remote Local Resource Configuration**: Receive the CREATE_NEW_PROXY_BRIDGE request from PointB server and its request contains the host and port infomration of Local Resources of this Point A.
 
 ## Installation
 
@@ -26,9 +27,6 @@ To start the Remote Agent, use the following command:
 RemoteAgent.exe -p <LocalPort> -h <LocalHost> --pointBHost <PointBHost> --pointBPort <PointBPort> [--encrypted]
 ```
 ### Options
-
-- `-p`, `--port`: (Required) Specifies the port number of the local server.
-- `-h`, `--host`: (Required) Specifies the host string of the local server.
 - `--pointBHost`: (Required) Specifies the host to connect to (Point B).
 - `--pointBPort`: (Required) Specifies the port number to connect to at Point B.
 - `--encrypted`: (Optional) Specifies whether the communication with Point B should be encrypted. Defaults to `false`.
@@ -36,7 +34,7 @@ RemoteAgent.exe -p <LocalPort> -h <LocalHost> --pointBHost <PointBHost> --pointB
 ### Example
 
 ```sh
-RemoteAgent.exe -p 8080 -h localhost --pointBHost example.com --pointBPort 2281 --encrypted
+RemoteAgent.exe --pointBHost example.com --pointBPort 2281 --encrypted
 ```
 
 ## Stopping the Remote Agent

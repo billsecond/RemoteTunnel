@@ -10,16 +10,29 @@ using Utils;
 
 namespace Remote.Server.Core
 {
+    internal struct LocalListenEndpoint
+    {
+        public TcpClient client;
+        public int PointALocalServerPort;
+        public string PointALocalServerHost;
+        public LocalListenEndpoint(TcpClient client, int port, string host)
+        {
+            this.client = client;
+            this.PointALocalServerPort = port;
+            this.PointALocalServerHost = host;
+        }
+
+    }
     internal class PointAListenServer
     {
         // Declaration of variables used within the class
         private ushort port;
         private TcpListener _Listener;
-        private TcpClient MasterPointAClient;
-        private LocalListenServer _localListenerServer;
+        private TcpClient MasterPointAClient;        
         private bool isEncrypted;
         private string username;
         private string password;
+        public Hashtable LocalListenEndpointHashTable;
 
         // Property to check if the server has started
         internal bool IsStarting
@@ -36,12 +49,12 @@ namespace Remote.Server.Core
             this.isEncrypted = isEncrypted;
             this.username = username;
             this.password = password;
+            LocalListenEndpointHashTable = new Hashtable();
         }
 
         // Method to start the server
-        public void Start(LocalListenServer s)
-        {
-            this._localListenerServer = s;
+        public void Start()
+        {            
             if (!this.IsStarting)
             {
                 this._Listener = new TcpListener(IPAddress.Any, port);
@@ -123,7 +136,7 @@ namespace Remote.Server.Core
                 {
                     Logger.WriteLineLog(string.Format("Recieved Slave Connection Request from {1} at {0} ...", DateTime.Now, client.Client.RemoteEndPoint));
                     String hashValue = packet.name;
-                    if (_localListenerServer.tcpClientList.ContainsKey(hashValue))
+                    if (LocalListenEndpointHashTable.ContainsKey(hashValue))
                     {
                         ret_packet.dataIdentifier = (Int16)DataIdentifier.ACCEPTED_CONNECTION;
 
@@ -131,7 +144,7 @@ namespace Remote.Server.Core
                         if (isEncrypted) buffer = EncryptService.Encrypt(buffer);
                         SocketUtils.Send(client, buffer);
 
-                        PortForwardBridge.CreatePortForwardBridge(_localListenerServer,hashValue, client, isEncrypted);
+                        PortForwardBridge.CreatePortForwardBridge(this, hashValue, client, isEncrypted);
                         return true;
                     }
                     else
@@ -196,17 +209,23 @@ namespace Remote.Server.Core
             return false;
         }
 
-        public bool StartNewPointAClient(String hashValue)
-        {
+        public bool StartNewPointAClient(LocalListenEndpoint item)
+        {            
             if (this.MasterPointAClient == null) return false;
             if (!this.MasterPointAClient.Connected) return false;
             
+            String hashKey = Guid.NewGuid().ToString(); ;
+            LocalListenEndpointHashTable.Add(hashKey, item);
+
             Packet packet = new Packet();
             packet.dataIdentifier = (Int16)DataIdentifier.CREATE_NEW_PROXY_BRIDGE;
-            packet.name = hashValue;
+            packet.name = hashKey;
+            packet.message = Encoding.UTF8.GetBytes($"{item.PointALocalServerHost}:{item.PointALocalServerPort}");
             byte[] buffer = packet.GetDataStream();
             if(isEncrypted) buffer = EncryptService.Encrypt(buffer);
             SocketUtils.Send(this.MasterPointAClient, buffer);
+
+            Logger.WriteLineLog(string.Format("Start New Point A Client Request has been sent with hashKey {0}", hashKey));
             return true;
             
         }

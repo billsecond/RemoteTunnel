@@ -16,15 +16,12 @@ namespace Remote.Server.Core
         private TcpListener _Listener;
         private bool IsStarting;
         private PointAListenServer _pointAListenServer;
-        public Hashtable tcpClientList
+        private HostPort _pointALocalHostPort; // host and port information of Point A Local Server        
+
+        public LocalListenServer(HostPort hostPort, int port)
         {
-            get;
-            private set;
-        }
-        public LocalListenServer(ushort port)
-        {
-            this.port = port;
-            tcpClientList = new Hashtable();
+            this._pointALocalHostPort = hostPort;
+            this.port = (ushort)port;
             this.IsStarting = false;
 
         }
@@ -65,16 +62,11 @@ namespace Remote.Server.Core
                     return;
                 }
 
-                String hashKey = Guid.NewGuid().ToString(); ;
-                this.tcpClientList.Add(hashKey, tcpClient);
                 
+                LocalListenEndpoint item = new LocalListenEndpoint(tcpClient, _pointALocalHostPort.Port, _pointALocalHostPort.Host);                
                 Logger.WriteLineLog(string.Format("Received Client Connection Request from {1} at {0}...", DateTime.Now, tcpClient.Client.RemoteEndPoint));
-                //Create Socks5Endpoint Client
-                if (_pointAListenServer.StartNewPointAClient(hashKey))
-                {
-                    Logger.WriteLineLog(string.Format("Start New Point A Client Request has been sent with hashKey {0}", hashKey));
-                }
-
+                //Create New Client on Point A side which will be connected to this endpoint
+                _pointAListenServer.StartNewPointAClient(item);
             }
             catch (ObjectDisposedException) { }
             catch (Exception ex)
