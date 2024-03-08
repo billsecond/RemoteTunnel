@@ -2,7 +2,7 @@
   "profiles": {
     "Remote.Agent": {
       "commandName": "Project",
-      "commandLineArgs": "--pointBPort 2282\r\n--pointBHost 127.0.0.1\r\n--encrypted"
+      "commandLineArgs": "-p 35000\r\n-h 127.0.0.1\r\n--pointBPort 2282\r\n--pointBHost 127.0.0.1\r\n--encrypted"
     }
   }
 }

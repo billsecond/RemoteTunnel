@@ -13,13 +13,19 @@ namespace Remote.Server.Core
     internal struct LocalListenEndpoint
     {
         public TcpClient client;
-        public int PointALocalServerPort;
-        public string PointALocalServerHost;
+        public int? PointALocalServerPort;
+        public string? PointALocalServerHost;
         public LocalListenEndpoint(TcpClient client, int port, string host)
         {
             this.client = client;
             this.PointALocalServerPort = port;
             this.PointALocalServerHost = host;
+        }
+        public LocalListenEndpoint(TcpClient client)
+        {
+            this.client = client;
+            this.PointALocalServerPort = null;
+            this.PointALocalServerHost = null;
         }
 
     }
@@ -28,7 +34,8 @@ namespace Remote.Server.Core
         // Declaration of variables used within the class
         private ushort port;
         private TcpListener _Listener;
-        private TcpClient MasterPointAClient;        
+        private TcpClient MasterPointAClient;
+        private byte[] _MasterPointABuffer;
         private bool isEncrypted;
         private string username;
         private string password;
@@ -50,6 +57,7 @@ namespace Remote.Server.Core
             this.username = username;
             this.password = password;
             LocalListenEndpointHashTable = new Hashtable();
+            _MasterPointABuffer = new byte[0];
         }
 
         // Method to start the server
@@ -106,7 +114,43 @@ namespace Remote.Server.Core
                 Logger.WriteLineLog(string.Format("Server for Point A: An error occurred at {0}, error message: {1}, Trace:{2}", DateTime.Now, ex.Message, ex.StackTrace));
             }
         }
+        // Callback method for handling data received from Master Client of Point A asynchronously.
+        private void OnMasterReceive(IAsyncResult async)
+        {
+            try
+            {
+                // Retrieve the socket from the state object.
+                Socket socket = async.AsyncState as Socket;
+                SocketError error;
+                // Complete receiving the data and get the size of the received data.
+                int size = socket.EndReceive(async, out error);
+                // If the service is still running, continue to receive data.
+                if (this.IsStarting)
+                    this.MasterPointAClient.Client.BeginReceive(_MasterPointABuffer, 0, _MasterPointABuffer.Length, SocketFlags.None, OnMasterReceive, MasterPointAClient.Client);
 
+                // Decrypt the received data if encryption is enabled.
+                if (isEncrypted) _MasterPointABuffer = EncryptService.Decrypt(_MasterPointABuffer);
+
+                // Deserialize the buffer into a packet object.
+                Packet packet = new Packet(_MasterPointABuffer);
+                if (packet.dataIdentifier == (Int16)DataIdentifier.FAILED_CREATE_NEW_PROXY_BRIDGE)
+                {
+                    string hashvalue = packet.name;
+                    if (LocalListenEndpointHashTable.Contains(hashvalue))
+                    {
+                        LocalListenEndpoint e = (LocalListenEndpoint) LocalListenEndpointHashTable[hashvalue];
+                        e.client.Close();
+                        LocalListenEndpointHashTable.Remove(hashvalue);
+                        Logger.WriteLineLog(string.Format("Failed on Creatine new Proxy Request to Point A Local Server {1}:{2} at {0} ", DateTime.Now, e.PointALocalServerHost, e.PointALocalServerPort));
+                    }
+                }
+            }
+            catch(Exception ex)
+            {
+                // Log any exceptions that occur during the process.
+                Logger.WriteLineLog(string.Format("An error occurred at {0}, error message: {1}, {2}", DateTime.Now, ex.Message, ex.StackTrace));
+            }
+        }
         private bool _DoShakeHandle(TcpClient client)
         {
             byte[] buffer;
@@ -129,6 +173,8 @@ namespace Remote.Server.Core
                         return false;
                     }
                     this.MasterPointAClient = client;
+                    _MasterPointABuffer = new byte[MasterPointAClient.ReceiveBufferSize];
+                    this.MasterPointAClient.Client.BeginReceive(_MasterPointABuffer, 0, _MasterPointABuffer.Length, SocketFlags.None, OnMasterReceive, MasterPointAClient.Client);
                     Logger.WriteLineLog(string.Format("Recieved Master Connection Request from {1} at {0} ...", DateTime.Now, this.MasterPointAClient.Client.RemoteEndPoint));
                     return true;
                 }
@@ -153,6 +199,7 @@ namespace Remote.Server.Core
                         Logger.WriteLineLog(ret_packet.name);
                     }
                 }
+                
                 else
                 {
                     Logger.WriteLineLog(string.Format("Recieved Unkonwn Connection Request from {1} at {0} ...", DateTime.Now, client.Client.RemoteEndPoint));                    
@@ -220,7 +267,8 @@ namespace Remote.Server.Core
             Packet packet = new Packet();
             packet.dataIdentifier = (Int16)DataIdentifier.CREATE_NEW_PROXY_BRIDGE;
             packet.name = hashKey;
-            packet.message = Encoding.UTF8.GetBytes($"{item.PointALocalServerHost}:{item.PointALocalServerPort}");
+            if(item.PointALocalServerPort!=null && item.PointALocalServerHost!=null)
+                packet.message = Encoding.UTF8.GetBytes($"{item.PointALocalServerHost}:{item.PointALocalServerPort}");
             byte[] buffer = packet.GetDataStream();
             if(isEncrypted) buffer = EncryptService.Encrypt(buffer);
             SocketUtils.Send(this.MasterPointAClient, buffer);

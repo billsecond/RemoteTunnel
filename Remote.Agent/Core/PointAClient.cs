@@ -19,6 +19,9 @@ namespace Remote.Agent.Core
         TcpClient masterClientOfPointB;
         byte[] _MasterBuffer; // Buffer for storing data received from Point B.
         private bool isEncrypted; // Flag to indicate if encryption is enabled.
+        private string LocalWebServerHost = "127.0.0.1"; // Default host address for the local web server.
+        private int LocalWebServerPort = 9000; // Default port for the local web server.
+        private HashSet<string> allowedSet;
         public PointAClient()
         {
             _MasterBuffer = new byte[0];
@@ -26,13 +29,16 @@ namespace Remote.Agent.Core
             PointBPassword = "";
             IsStarting = false;
             isEncrypted = false;
+            allowedSet = new HashSet<string>();
         }
-        public PointAClient(string pointBHost, int pointBPort, bool isEncrypted, string username, string password)
+        public PointAClient(string pointBHost, int pointBPort, string localWebServerHost, int localWebServerPort, bool isEncrypted, string username, string password, HashSet<string> m)
         {
             PointBHost = pointBHost;
-            PointBPort = pointBPort;            
+            PointBPort = pointBPort;
+            LocalWebServerHost = localWebServerHost;
+            LocalWebServerPort = localWebServerPort;
             masterClientOfPointB = new TcpClient();
-
+            allowedSet = m;
             _MasterBuffer = new byte[0];
             this.isEncrypted = isEncrypted;
             PointBUserName = username;
@@ -87,32 +93,38 @@ namespace Remote.Agent.Core
                     {
                         Logger.WriteLineLog(string.Format("Create New Proxy Request Accepted", DateTime.Now));
                         string hashvalue = packet.name;
-
-
-                        // Get Local Server Host and Port information from Packet
-                        string data = Encoding.UTF8.GetString(packet.message);
-                        string[] parts = data.Split(':');
-                        string localHost="";
-                        int localPort=0;
-                        bool GotHostPort = false;
-                        if (parts.Length == 2)
+                        // Set the Default Local Host and port
+                        string localHost = LocalWebServerHost;
+                        int localPort = LocalWebServerPort;
+                        
+                        
+                        if (packet.message != null)
                         {
-                            localHost = parts[0];
-                            if (int.TryParse(parts[1], out int port))
+                            // Get Local Server Host and Port information from Packet
+                            string data = Encoding.UTF8.GetString(packet.message);
+                            string[] parts = data.Split(':');
+                            
+                            bool GotHostPort = false;
+                            if (parts.Length == 2)
                             {
-                                localPort = port;
-                                GotHostPort = true;
+                                localHost = parts[0];
+                                if (int.TryParse(parts[1], out int port))
+                                {
+                                    localPort = port;
+                                    GotHostPort = true;
+                                }
                             }
-                        }
-                        if(!GotHostPort) {
-                            Logger.WriteLineLog(string.Format("Create New Proxy Bridge request Didn't contain valid Host:Port information at ", PointBHost, PointBPort, DateTime.Now));
-                            packet = new Packet();
-                            packet.dataIdentifier = (short)DataIdentifier.FAILED_CREATE_NEW_PROXY_BRIDGE;
-                            packet.name = hashvalue;
-                            buffer = packet.GetDataStream();
-                            if (isEncrypted) buffer = EncryptService.Encrypt(buffer);
-                            SocketUtils.Send(socket, buffer);
-                            return;
+                            if (!GotHostPort || !allowedSet.Contains($"{localHost}:{localPort}"))
+                            {
+                                Logger.WriteLineLog(string.Format("Create New Proxy Request Didn't contain valid Host:Port information at ", PointBHost, PointBPort, DateTime.Now));
+                                packet = new Packet();
+                                packet.dataIdentifier = (short)DataIdentifier.FAILED_CREATE_NEW_PROXY_BRIDGE;
+                                packet.name = hashvalue;
+                                buffer = packet.GetDataStream();
+                                if (isEncrypted) buffer = EncryptService.Encrypt(buffer);
+                                SocketUtils.Send(masterClientOfPointB.Client, buffer);
+                                return;
+                            }
                         }
 
 

@@ -1,19 +1,22 @@
 ﻿using CommandLine;
 using Remote.Server.Core;
 using Utils;
-using System.Text.Json;
+using Newtonsoft.Json;
 
 
 class Options
-{    
+{
+    [Option('p', "port", Required = true, HelpText = "Port number of Local Server")]
+    public ushort LocalPort { get; set; }
+
     [Option("pointBPort", Required = true, HelpText = "Port number to accept Point A Client")]
     public ushort PointBPort { get; set; }
 
     [Option("encrypted", Default =false, Required = false, HelpText = "True if Point B is encrypted")]
     public bool IsEncrypted { get; set; }
     
-    [Option("config-file", Required = true, HelpText = "specify the json file which represents the server mapping information")]
-    public string ConfigFilePath{ get; set; }
+    [Option("config-file", Required = false, HelpText = "specify the json file which represents the server mapping information")]
+    public string? ConfigFilePath{ get; set; }
 
 }
 public struct HostPort
@@ -32,47 +35,45 @@ public struct HostPort
         return $"{Host}:{Port}";
     }
 }
+public class HostMapConfig
+{    public string PointALocalServer { get; set; }
+    public int PointALocalHost { get; set; }
+    public int PointBHost { get; set; } // Assuming you might need this later
+}
 public class Program
 {
     public static bool IsStarting;
-    static bool TryParseHostPort(string host, string portStr, out HostPort hostPort)
+
+    public static List<(HostPort HostPort, int Port, string KeyName)> LoadMappingsFromFile(string filePath)
     {
-        if (int.TryParse(portStr, out int port))
-        {
-            hostPort = new HostPort(host, port);
-            return true;
-        }
-
-        hostPort = default;
-        return false;
-    }
-
-    static List<(HostPort, int)> LoadMappingsFromFile(string filePath)
-    {
-        var mappingsList = new List<(HostPort, int)>();
-
         try
         {
-            string[] lines = File.ReadAllLines(filePath);
-            foreach (var line in lines)
-            {
-                var parts = line.Split(new[] { ":", " ","\"" }, StringSplitOptions.RemoveEmptyEntries);                
-                if (parts.Length == 3 && TryParseHostPort(parts[0], parts[1], out HostPort key) && int.TryParse(parts[2], out int port))
-                {
-                    mappingsList.Add((key, port));
-                }
-                else
-                {
-                    Console.WriteLine($"Invalid or incomplete mapping found and skipped: {line}");
-                }
-            }
-        }
-        catch (IOException ex)
-        {
-            Console.WriteLine($"An error occurred while reading the file: {ex.Message}");
-        }
+            string jsonContent = File.ReadAllText(filePath);
+            var config = JsonConvert.DeserializeObject<Dictionary<string, HostMapConfig>>(jsonContent);
+            if (config == null) throw new Exception("Failed to parse JSON.");
 
-        return mappingsList;
+            var mappings = new List<(HostPort HostPort, int Port, string KeyName)>();
+            foreach (var entry in config)
+            {
+                string keyName = entry.Key;
+                var details = entry.Value;
+                
+                mappings.Add((new HostPort(details.PointALocalServer, details.PointALocalHost), details.PointBHost, keyName));
+            }
+            return mappings;
+        }
+        catch (Newtonsoft.Json.JsonException je)
+        {
+            throw new Exception("JSON format is incorrect.", je);
+        }
+        catch (FileNotFoundException ex)
+        {
+            throw new Exception("File Not Found", ex);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("An error occurred while processing the file.", ex);
+        }
     }
 
     public static void Main(string[] args)
@@ -85,37 +86,45 @@ public class Program
         Parser.Default.ParseArguments<Options>(args)
             .WithParsed<Options>(o =>
             {
-                List<(HostPort, int)> mappingsList;
+                List < (HostPort HostPort, int Port, string KeyName)> mappingsList=new List<(HostPort HostPort, int Port, string KeyName)>();
+
                 try
                 {
-                    mappingsList = LoadMappingsFromFile(o.ConfigFilePath);
-
-                    Console.WriteLine("Valid Mappings Loaded:");
-                    foreach (var mapping in mappingsList)
+                    if (o.ConfigFilePath != null)
                     {
-                        Console.WriteLine($"From: {mapping.Item1} To: {mapping.Item2}");
+                        mappingsList = LoadMappingsFromFile(o.ConfigFilePath);
+
+                        Console.WriteLine("========= Valid Mappings Loaded From Config File===========");
+                        foreach (var mapping in mappingsList)
+                        {
+                            Console.WriteLine($"Name:{mapping.KeyName},  From: {mapping.HostPort} To: {mapping.Port}");
+                        }
+                        Console.WriteLine("===========================================================");
                     }
+                    
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"An error occurred while processing the file: {ex.Message}");
-                    return ;
+                    Console.WriteLine($"An error occurred while processing the config file: {ex.Message}");                    
                 }
                 Program.IsStarting = true;
                 pointAListenServer = new PointAListenServer(o.PointBPort, o.IsEncrypted, "test", "testpassword");
                 pointAListenServer.Start();
+                LocalListenServer s = new LocalListenServer(null, o.LocalPort);
+                s.Start(pointAListenServer);
+                localListenServerList.Append(s);
                 foreach (var mapping in mappingsList)
                 {
-                    LocalListenServer s = new LocalListenServer(mapping.Item1, mapping.Item2);
+                    s = new LocalListenServer(mapping.HostPort, mapping.Port);
                     s.Start(pointAListenServer);
                     localListenServerList.Append(s);                    
                 }                                
                 Console.ReadLine();
                 Program.IsStarting = false;                
                 pointAListenServer.Stop();
-                foreach(var s in localListenServerList)
+                foreach(var ls in localListenServerList)
                 {
-                    s.Stop();
+                    ls.Stop();
                 }
             });    
     

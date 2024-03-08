@@ -16,9 +16,9 @@ namespace Remote.Server.Core
         private TcpListener _Listener;
         private bool IsStarting;
         private PointAListenServer _pointAListenServer;
-        private HostPort _pointALocalHostPort; // host and port information of Point A Local Server        
+        private HostPort? _pointALocalHostPort; // host and port information of Point A Local Server        
 
-        public LocalListenServer(HostPort hostPort, int port)
+        public LocalListenServer(HostPort? hostPort, int port)
         {
             this._pointALocalHostPort = hostPort;
             this.port = (ushort)port;
@@ -62,8 +62,12 @@ namespace Remote.Server.Core
                     return;
                 }
 
-                
-                LocalListenEndpoint item = new LocalListenEndpoint(tcpClient, _pointALocalHostPort.Port, _pointALocalHostPort.Host);                
+
+                LocalListenEndpoint item;
+                if (_pointALocalHostPort != null)
+                    item = new LocalListenEndpoint(tcpClient, ((HostPort)_pointALocalHostPort).Port, ((HostPort)_pointALocalHostPort).Host);                
+                else
+                    item = new LocalListenEndpoint(tcpClient);
                 Logger.WriteLineLog(string.Format("Received Client Connection Request from {1} at {0}...", DateTime.Now, tcpClient.Client.RemoteEndPoint));
                 //Create New Client on Point A side which will be connected to this endpoint
                 _pointAListenServer.StartNewPointAClient(item);

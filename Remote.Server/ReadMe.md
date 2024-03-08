@@ -18,9 +18,10 @@ RemoteServer.exe --pointBPort <PointBPort> [--encrypted] --config-file <file_pat
 ```
 ### Options
 
+- `-p`, `--port`: (Required) Specifies the port number of the local server.
 - `--pointBPort`: (Required) Specifies the port number of the server for Remote Agent
 - `--encrypted`: (Optional) Specifies whether the communication with Point B should be encrypted. Defaults to `false`.
-- `--config-file`: (Required) Specifies the config file path of host mapping list
+- `--config-file`: (Optional) Specifies the config file path of host mapping list
 
 ### Example
 ## sample config file content
@@ -30,10 +31,11 @@ RemoteServer.exe --pointBPort <PointBPort> [--encrypted] --config-file <file_pat
 "127.0.0.1:5100": "3202"
 ```
 When user send request to **3200** port, then its request will be sent to **5000** port of point A Local resource.
+However, if **5000** port is not allowed in Point A, the request will be failed. You can allow it by providing the same config file on **Remote.Agent**
 
 ## running server
 ```sh
-RemoteServer.exe --pointBPort 2281 --config-file D:\conf.txt [--encrypted]
+RemoteServer.exe -p 2282  --pointBPort 2281 --config-file D:\conf.txt
 ```
 ## Stopping the Remote Server
 
