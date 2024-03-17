@@ -14,20 +14,29 @@ Remote Server listens the connection from two servers, one for request of user a
 To start the Remote Server, use the following command:
 
 ```sh
-RemoteServer.exe -p <LocalPort> --pointBPort <PointBPort> [--encrypted]
+RemoteServer.exe --pointBPort <PointBPort> [--encrypted] --config-file <file_path_to_config_>
 ```
 ### Options
 
 - `-p`, `--port`: (Required) Specifies the port number of the local server.
 - `--pointBPort`: (Required) Specifies the port number of the server for Remote Agent
 - `--encrypted`: (Optional) Specifies whether the communication with Point B should be encrypted. Defaults to `false`.
+- `--config-file`: (Optional) Specifies the config file path of host mapping list
 
 ### Example
-
-```sh
-RemoteServer.exe -p 2282 --pointBPort 2281 [--encrypted]
+## sample config file content
+``` text
+"127.0.0.1:5000": "3200"
+"127.0.0.1:5000": "3201"
+"127.0.0.1:5100": "3202"
 ```
-If All connections are established, when user send request to 2282 port, request will be transmitted to the local server of Remote Agent
+When user send request to **3200** port, then its request will be sent to **5000** port of point A Local resource.
+However, if **5000** port is not allowed in Point A, the request will be failed. You can allow it by providing the same config file on **Remote.Agent**
+
+## running server
+```sh
+RemoteServer.exe -p 2282  --pointBPort 2281 --config-file D:\conf.txt
+```
 ## Stopping the Remote Server
 
 To stop the Remote Server, simply press `Enter` in the console window where the application is running.

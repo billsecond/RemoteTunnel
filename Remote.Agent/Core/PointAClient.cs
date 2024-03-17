@@ -10,16 +10,18 @@ using System.Threading.Tasks;
 using Utils;
 namespace Remote.Agent.Core
 {
+    
     internal class PointAClient
     {
         static int retrySeconds = 3 * 1000; // Time in milliseconds to wait before retrying connection to Point B.
         private string PointBHost = "127.0.0.1"; // Default host address for Point B.
-        private int PointBPort = 8080; // Default port for Point B.
-        private string LocalWebServerHost = "127.0.0.1"; // Default host address for the local web server.
-        private int LocalWebServerPort = 9000; // Default port for the local web server.
+        private int PointBPort = 8080; // Default port for Point B.        
         TcpClient masterClientOfPointB;
         byte[] _MasterBuffer; // Buffer for storing data received from Point B.
         private bool isEncrypted; // Flag to indicate if encryption is enabled.
+        private string LocalWebServerHost = "127.0.0.1"; // Default host address for the local web server.
+        private int LocalWebServerPort = 9000; // Default port for the local web server.
+        private HashSet<string> allowedSet;
         public PointAClient()
         {
             _MasterBuffer = new byte[0];
@@ -27,15 +29,16 @@ namespace Remote.Agent.Core
             PointBPassword = "";
             IsStarting = false;
             isEncrypted = false;
+            allowedSet = new HashSet<string>();
         }
-        public PointAClient(string pointBHost, int pointBPort, string localWebServerHost, int localWebServerPort, bool isEncrypted, string username, string password)
+        public PointAClient(string pointBHost, int pointBPort, string localWebServerHost, int localWebServerPort, bool isEncrypted, string username, string password, HashSet<string> m)
         {
             PointBHost = pointBHost;
             PointBPort = pointBPort;
             LocalWebServerHost = localWebServerHost;
-            LocalWebServerPort = localWebServerPort;            
+            LocalWebServerPort = localWebServerPort;
             masterClientOfPointB = new TcpClient();
-
+            allowedSet = m;
             _MasterBuffer = new byte[0];
             this.isEncrypted = isEncrypted;
             PointBUserName = username;
@@ -89,8 +92,43 @@ namespace Remote.Agent.Core
                     if (packet.dataIdentifier == (short)DataIdentifier.CREATE_NEW_PROXY_BRIDGE)
                     {
                         Logger.WriteLineLog(string.Format("Create New Proxy Request Accepted", DateTime.Now));
-                        // Create a new TCP client to connect to Point B.
                         string hashvalue = packet.name;
+                        // Set the Default Local Host and port
+                        string localHost = LocalWebServerHost;
+                        int localPort = LocalWebServerPort;
+                        
+                        
+                        if (packet.message != null)
+                        {
+                            // Get Local Server Host and Port information from Packet
+                            string data = Encoding.UTF8.GetString(packet.message);
+                            string[] parts = data.Split(':');
+                            
+                            bool GotHostPort = false;
+                            if (parts.Length == 2)
+                            {
+                                localHost = parts[0];
+                                if (int.TryParse(parts[1], out int port))
+                                {
+                                    localPort = port;
+                                    GotHostPort = true;
+                                }
+                            }
+                            if (!GotHostPort || !allowedSet.Contains($"{localHost}:{localPort}"))
+                            {
+                                Logger.WriteLineLog(string.Format("Create New Proxy Request Didn't contain valid Host:Port information at ", PointBHost, PointBPort, DateTime.Now));
+                                packet = new Packet();
+                                packet.dataIdentifier = (short)DataIdentifier.FAILED_CREATE_NEW_PROXY_BRIDGE;
+                                packet.name = hashvalue;
+                                buffer = packet.GetDataStream();
+                                if (isEncrypted) buffer = EncryptService.Encrypt(buffer);
+                                SocketUtils.Send(masterClientOfPointB.Client, buffer);
+                                return;
+                            }
+                        }
+
+
+                        // Create a new TCP client to connect to Point B.                        
                         TcpClient client = new TcpClient();
                         client.Connect(PointBHost, PointBPort);
                         if (!client.Connected)
@@ -105,6 +143,7 @@ namespace Remote.Agent.Core
                             SocketUtils.Send(socket, buffer);
                             return;
                         }
+
                         /// Do Hand Shake to establish the new proxy connection.
                         /// Send ENDPOINT_CONNECTION request to Point B for new proxy bridge with hashValue. 
                         /// Receive ACCEPTED_CONNECTIOn response from Point B.
@@ -117,6 +156,7 @@ namespace Remote.Agent.Core
                         if (isEncrypted) buffer = EncryptService.Encrypt(buffer);
                         SocketUtils.Send(client, buffer);
 
+
                         // Wait for a response from the newly connected client.
                         SocketUtils.Receive(client, 256, out buffer);
                         if (isEncrypted) buffer = EncryptService.Decrypt(buffer);
@@ -125,7 +165,7 @@ namespace Remote.Agent.Core
                         {
                             Logger.WriteLineLog(string.Format("HandShake between Point A and Point B Succeed.", DateTime.Now));
                             // Start forwarding the connection upon successful handshake.
-                            if (StartForwarding(client))
+                            if (StartForwarding(client, localHost, localPort))
                             {
                                 Logger.WriteLineLog("Forwarding has been started");
                             }
@@ -195,12 +235,21 @@ namespace Remote.Agent.Core
         }
 
         // Initiates the forwarding of the client's connection to the destination.
-        private bool StartForwarding(TcpClient pointBEndpoint)
+        private bool StartForwarding(TcpClient pointBEndpoint, string localhost, int localPort)
         {
-            // Create a new TCP client for the local web server.
             TcpClient localClient = new TcpClient();
+            try
+            {
+                localClient.Connect(localhost, localPort);
+            }
+            catch (Exception ex)
+            {
+                return false;
+            }
+            // Create a new TCP client for the local web server.
+            
             // Attempt to connect to the local web server.
-            localClient.Connect(LocalWebServerHost, LocalWebServerPort);
+            
             // Check if the connection to the local web server was successful.
             if (localClient.Connected)
             {

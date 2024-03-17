@@ -13,17 +13,20 @@ namespace Remote.Server.Core
 
         // TcpClient objects for the client and endpoint connections.
         public TcpClient localClient;
+        // Store information of Local Listen endpoint of this bridge
+        private LocalListenEndpoint localListenEndpoint;
         public TcpClient pointAClient;
-        private LocalListenServer localListenServer;
+        private PointAListenServer pointAListenServer;
         private string localClienthashValue;
         private bool isEncrypted;
 
         // Constructor for initializing a new PortForwardBridge instance.
-        public PortForwardBridge(LocalListenServer s, string hashValue, TcpClient pointAClient, bool isEncrypted)
+        public PortForwardBridge(PointAListenServer s, string hashValue, TcpClient pointAClient, bool isEncrypted)
         {
-            this.localListenServer = s;
+            this.pointAListenServer = s;
             this.localClienthashValue = hashValue;
-            this.localClient = (TcpClient)s.tcpClientList[hashValue];
+            localListenEndpoint = (LocalListenEndpoint)s.LocalListenEndpointHashTable[hashValue];
+            this.localClient = localListenEndpoint.client;
             this.pointAClient = pointAClient;
             this._LocalClientBuffer = new byte[0];
             this._PointAClientBuffer = new byte[0];
@@ -114,7 +117,7 @@ namespace Remote.Server.Core
                 {
                     Logger.WriteLineLog($"Closed Connection to client {localClient.Client.RemoteEndPoint} at {DateTime.Now} ...");
                     localClient.Close();
-                    localListenServer.tcpClientList.Remove(localClienthashValue);
+                    pointAListenServer.LocalListenEndpointHashTable.Remove(localClienthashValue);
                     localClient = null;
                 }
                 catch (System.ObjectDisposedException)
@@ -146,7 +149,7 @@ namespace Remote.Server.Core
         }
 
         // Static method for creating and starting a PortForwardBridge.
-        static public void CreatePortForwardBridge(LocalListenServer s, string hashValue, TcpClient pointAClient, bool isEncrypted)
+        static public void CreatePortForwardBridge(PointAListenServer s, string hashValue, TcpClient pointAClient, bool isEncrypted)
         {
             PortForwardBridge bridge = new PortForwardBridge(s,hashValue, pointAClient, isEncrypted);
             _ = ThreadPool.QueueUserWorkItem(new WaitCallback(bridge.Start));

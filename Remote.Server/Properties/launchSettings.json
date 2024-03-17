@@ -2,7 +2,7 @@
   "profiles": {
     "Remote.Server": {
       "commandName": "Project",
-      "commandLineArgs": "-p 2282\r\n--pointBPort 2281\r\n--encrypted"
+      "commandLineArgs": "-p 3300\r\n--config-file host_map_conf.json\r\n--pointBPort 2281"
     }
   }
 }

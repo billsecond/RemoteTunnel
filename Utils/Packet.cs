@@ -12,7 +12,7 @@ namespace Utils
         ENDPOINT_CONNECTION = 0x02,
         ACCEPTED_CONNECTION = 0x10,
         REJECTED_CONNECTION = 0x11,
-        CREATE_NEW_PROXY_BRIDGE = 0x22,
+        CREATE_NEW_PROXY_BRIDGE = 0x22, // contain host:port information in message field
         FAILED_CREATE_NEW_PROXY_BRIDGE = 0x23,
         AUTHENTICATION_REQUEST = 0x31,
         AUTHORIZED = 0x32,

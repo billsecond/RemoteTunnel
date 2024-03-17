@@ -1,0 +1,17 @@
+{
+  "WebServer-1": {
+    "PointALocalServer": "127.0.0.1",
+    "PointALocalHost": 5000,
+    "PointBHost": 3200
+  },
+  "WebServer-2": {
+    "PointALocalServer": "127.0.0.1",
+    "PointALocalHost": 5000,
+    "PointBHost": 3201
+  },
+  "WebServer-3": {
+    "PointALocalServer": "127.0.0.1",
+    "PointALocalHost": 5000,
+    "PointBHost": 3202
+  }
+}
