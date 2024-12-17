@@ -1,6 +1,6 @@
 # Remote Server
 
-Remote Sever is a command-line application designed to tramit the request of user to the secured resource of Remote Agent.
+Remote Server is a command-line application designed to tramit the request of user to the secured resource of Remote Agent.
 Remote Server listens the connection from two servers, one for request of user and other one for connection from Remote Agent.
 ## Features
 
